@@ -26,7 +26,6 @@ def establish_db():
     st.info("`Chroma DB creating...`")
     emb = SentenceTransformerEmbeddings(model_name=MODEL_NAME)
     db = Chroma(embedding_function=emb, persist_directory=DB_PATH)
-    print("zalupa")
     return db
 
 
@@ -49,7 +48,6 @@ def update_states_and_db(files: list, db) -> None:
         if file_.name not in st.session_state["uploaded_files"]:
             st.session_state.uploaded_files.append(file_.name)
             docs, metadata = load_docs(f"{FILE_PATH}/{file_.name}")
-            print("HERE")
             db.add_texts(texts=docs, metadatas=metadata)
             db.persist()
 
