@@ -47,6 +47,10 @@ def return_document_metadata(query: str):
     pass
 
 
+def chat():
+    pass
+
+
 def update_states_and_db(files: list, db) -> None:
     for file_ in files:
         if file_.name not in st.session_state["uploaded_files"]:
@@ -57,10 +61,13 @@ def update_states_and_db(files: list, db) -> None:
 
 
 def main():
-    db = establish_db()
-
+    # Sidebar
     st.sidebar.title("Menu")
+    mode = st.sidebar.radio("Select Mode", ["Search", "Chat"])
 
+    # DB
+    db = establish_db()
+    # Files
     files = st.file_uploader(
         "Upload Documents", type=["pdf"], accept_multiple_files=True
     )
@@ -73,10 +80,9 @@ def main():
         st.write("Documents uploaded and processed.")
 
     query = st.text_input(
-        label="Enter query",
+        label=f"{mode}",
         value="",
         placeholder="Enter query",
-        label_visibility="hidden",
     )
 
     if len(query) > 0:
