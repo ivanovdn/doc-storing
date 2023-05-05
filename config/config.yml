@@ -1,0 +1,6 @@
+FILE_PATH: /Users/dmytro.ivanov/Projects/nlp/chat-pdf/data
+DB_PATH: /Users/dmytro.ivanov/Projects/nlp/chat-pdf/data/db
+MODEL_NAME: sentence-transformers/all-mpnet-base-v2
+SEPARATOR: \n
+CHUNK_SIZE: 2000
+CHUNK_OVERLAP: 100 
