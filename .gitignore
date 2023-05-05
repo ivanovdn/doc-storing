@@ -1,0 +1,6 @@
+.DS_Store
+.vscode
+/notebooks
+/data
+.ipynb_checkpoints
+.chroma
