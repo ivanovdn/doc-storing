@@ -58,6 +58,9 @@ def update_states_and_db(files: list, db) -> None:
 
 def main():
     db = establish_db()
+
+    st.sidebar.title("Menu")
+
     files = st.file_uploader(
         "Upload Documents", type=["pdf"], accept_multiple_files=True
     )
