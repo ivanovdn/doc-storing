@@ -34,9 +34,9 @@ def load_docs(file_path: str):
     st.info("`Reading doc ...`")
     doc = PyPDFLoader(file_path)
     docs = doc.load_and_split(text_splitter=splitter)
-    return [preprocess(doc.page_content) for doc in docs], [
-        doc.metadata for doc in docs
-    ]
+    docs = [preprocess(doc.page_content) for doc in docs]
+    metadata = [doc.metadata for doc in docs]
+    return docs, metadata
 
 
 def return_document_metadata(query: str):
