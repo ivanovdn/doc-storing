@@ -6,13 +6,17 @@ from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
 
+from config import config
+
+config_dict = config.config()
+
 st.title("Document storing example")
 
-FILE_PATH = "/Users/dmytro.ivanov/Projects/nlp/chat-pdf/data"
-DB_PATH = "/Users/dmytro.ivanov/Projects/nlp/chat-pdf/data/db"
-MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-
-splitter = CharacterTextSplitter(separator="\n", chunk_size=2000, chunk_overlap=100)
+splitter = CharacterTextSplitter(
+    separator=config_dict["SEPARATOR"],
+    chunk_size=config_dict["CHUNK_SIZE"],
+    chunk_overlap=config_dict["CHUNK_OVERLAP"],
+)
 
 
 def preprocess(text: str) -> str:
@@ -24,8 +28,8 @@ def preprocess(text: str) -> str:
 @st.cache_resource
 def establish_db():
     st.info("`Chroma DB creating...`")
-    emb = SentenceTransformerEmbeddings(model_name=MODEL_NAME)
-    db = Chroma(embedding_function=emb, persist_directory=DB_PATH)
+    emb = SentenceTransformerEmbeddings(model_name=config_dict["MODEL_NAME"])
+    db = Chroma(embedding_function=emb, persist_directory=config_dict["DB_PATH"])
     return db
 
 
@@ -34,9 +38,9 @@ def load_docs(file_path: str):
     st.info("`Reading doc ...`")
     doc = PyPDFLoader(file_path)
     docs = doc.load_and_split(text_splitter=splitter)
-    docs = [preprocess(doc.page_content) for doc in docs]
+    processed_docs = [preprocess(doc.page_content) for doc in docs]
     metadata = [doc.metadata for doc in docs]
-    return docs, metadata
+    return processed_docs, metadata
 
 
 def return_document_metadata(query: str):
@@ -47,7 +51,7 @@ def update_states_and_db(files: list, db) -> None:
     for file_ in files:
         if file_.name not in st.session_state["uploaded_files"]:
             st.session_state.uploaded_files.append(file_.name)
-            docs, metadata = load_docs(f"{FILE_PATH}/{file_.name}")
+            docs, metadata = load_docs(f"{config_dict['FILE_PATH']}/{file_.name}")
             db.add_texts(texts=docs, metadatas=metadata)
             db.persist()
 
@@ -63,8 +67,6 @@ def main():
 
     if files:
         update_states_and_db(files, db)
-        print(st.session_state.uploaded_files)
-
         st.write("Documents uploaded and processed.")
 
     query = st.text_input(
