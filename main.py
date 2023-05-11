@@ -1,6 +1,8 @@
 import re
 
 import streamlit as st
+from langchain.chains import RetrievalQA
+from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import PyPDFLoader
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
@@ -25,12 +27,20 @@ def preprocess(text: str) -> str:
     return text
 
 
+def process_llm_response(llm_response):
+    ans = {}
+    ans["response"] = llm_response["result"]
+    ans["source_documents"] = llm_response["source_documents"]
+    return ans
+
+
 @st.cache_resource
 def establish_db():
     st.info("`Chroma DB creating...`")
     emb = SentenceTransformerEmbeddings(model_name=config_dict["MODEL_NAME"])
     db = Chroma(embedding_function=emb, persist_directory=config_dict["DB_PATH"])
-    return db
+    retriever = db.as_retriever()
+    return db, retriever
 
 
 @st.cache_data
@@ -47,8 +57,15 @@ def return_document_metadata(query: str):
     pass
 
 
-def chat():
-    pass
+@st.cache_resource
+def chat(_retriever):
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=ChatOpenAI(),
+        chain_type="stuff",
+        retriever=_retriever,
+        return_source_documents=True,
+    )
+    return qa_chain
 
 
 def update_states_and_db(files: list, db) -> None:
@@ -66,7 +83,8 @@ def main():
     mode = st.sidebar.radio("Select Mode", ["Search", "Chat"])
 
     # DB
-    db = establish_db()
+    db, retriever = establish_db()
+    qa_chain = chat(retriever)
     # Files
     files = st.file_uploader(
         "Upload Documents", type=["pdf"], accept_multiple_files=True
@@ -86,12 +104,17 @@ def main():
     )
 
     if len(query) > 0:
-        ans = db.similarity_search(query, k=2)
-        for a in ans:
-            dic = {}
-            dic["page_content"] = a.page_content
-            dic["source"] = a.metadata["source"]
-            dic["page"] = a.metadata["page"] + 1
+        if mode == "Search":
+            ans = db.similarity_search(query, k=2)
+            for a in ans:
+                dic = {}
+                dic["page_content"] = a.page_content
+                dic["source"] = a.metadata["source"]
+                dic["page"] = a.metadata["page"] + 1
+                st.write(dic)
+        if mode == "Chat":
+            llm_response = qa_chain(query)
+            dic = process_llm_response(llm_response)
             st.write(dic)
 
 
