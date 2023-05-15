@@ -60,7 +60,7 @@ def return_document_metadata(query: str):
 @st.cache_resource
 def chat(_retriever):
     qa_chain = RetrievalQA.from_chain_type(
-        llm=ChatOpenAI(),
+        llm=ChatOpenAI(temperature=config_dict["TEMPERATURE"]),
         chain_type="stuff",
         retriever=_retriever,
         return_source_documents=True,

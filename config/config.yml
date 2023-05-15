@@ -4,3 +4,4 @@ MODEL_NAME: sentence-transformers/all-mpnet-base-v2
 SEPARATOR: \n
 CHUNK_SIZE: 2000
 CHUNK_OVERLAP: 100 
+TEMPERATURE: 0.1
