@@ -58,7 +58,8 @@ def return_document_metadata(query: str):
 
 
 @st.cache_resource
-def chat(_retriever):
+def chat(_retriever, k_param):
+    _retriever.search_kwargs = {"k": k_param}
     qa_chain = RetrievalQA.from_chain_type(
         llm=ChatOpenAI(temperature=config_dict["TEMPERATURE"]),
         chain_type="stuff",
@@ -81,10 +82,11 @@ def main():
     # Sidebar
     st.sidebar.title("Menu")
     mode = st.sidebar.radio("Select Mode", ["Search", "Chat"])
+    k_param = st.sidebar.selectbox("Select number of docs to return", [2, 3, 4, 5])
 
     # DB
     db, retriever = establish_db()
-    qa_chain = chat(retriever)
+    qa_chain = chat(retriever, k_param=k_param)
     # Files
     files = st.file_uploader(
         "Upload Documents", type=["pdf"], accept_multiple_files=True
@@ -105,7 +107,7 @@ def main():
 
     if len(query) > 0:
         if mode == "Search":
-            ans = db.similarity_search(query, k=2)
+            ans = db.similarity_search(query, k=k_param)
             for a in ans:
                 dic = {}
                 dic["page_content"] = a.page_content
