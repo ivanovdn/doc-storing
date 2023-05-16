@@ -5,7 +5,7 @@ from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 from langchain.document_loaders import PyPDFLoader
 from langchain.embeddings import SentenceTransformerEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
 from config import config
@@ -14,8 +14,7 @@ config_dict = config.config()
 
 st.title("Document storing example")
 
-splitter = CharacterTextSplitter(
-    separator=config_dict["SEPARATOR"],
+splitter = RecursiveCharacterTextSplitter(
     chunk_size=config_dict["CHUNK_SIZE"],
     chunk_overlap=config_dict["CHUNK_OVERLAP"],
 )
