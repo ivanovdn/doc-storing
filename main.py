@@ -26,10 +26,16 @@ def preprocess(text: str) -> str:
     return text
 
 
-def process_llm_response(llm_response):
+def process_response(response, mode) -> dict:
     ans = {}
-    ans["response"] = llm_response["result"]
-    ans["source_documents"] = llm_response["source_documents"]
+    if mode == "Chat":
+        ans["response"] = response["result"]
+        ans["source_documents"] = response["source_documents"]
+    else:
+        # ans["page_content"] = [resp.page_content for resp in response]
+        # ans["source"] = [resp.metadata["source"] for resp in response]
+        # ans["page"] = [resp.metadata["page"] + 1 for resp in response]
+        ans["source_documents"] = response
     return ans
 
 
@@ -52,13 +58,8 @@ def load_docs(file_path: str):
     return processed_docs, metadata
 
 
-def return_document_metadata(query: str):
-    pass
-
-
 @st.cache_resource
-def chat(_retriever, k_param):
-    _retriever.search_kwargs = {"k": k_param}
+def chat(_retriever):
     qa_chain = RetrievalQA.from_chain_type(
         llm=ChatOpenAI(temperature=config_dict["TEMPERATURE"]),
         chain_type="stuff",
@@ -84,8 +85,9 @@ def main():
     k_param = st.sidebar.selectbox("Select number of docs to return", [2, 3, 4, 5])
 
     # DB
-    db, retriever = establish_db()
-    qa_chain = chat(retriever, k_param=k_param)
+    chromadb, retriever = establish_db()
+    retriever.search_kwargs = {"k": k_param}
+    qa_chain = chat(retriever)
     # Files
     files = st.file_uploader(
         "Upload Documents", type=["pdf"], accept_multiple_files=True
@@ -95,7 +97,7 @@ def main():
         st.session_state["uploaded_files"] = []
 
     if files:
-        update_states_and_db(files, db)
+        update_states_and_db(files, chromadb)
         st.write("Documents uploaded and processed.")
 
     query = st.text_input(
@@ -106,17 +108,11 @@ def main():
 
     if len(query) > 0:
         if mode == "Search":
-            ans = db.similarity_search(query, k=k_param)
-            for a in ans:
-                dic = {}
-                dic["page_content"] = a.page_content
-                dic["source"] = a.metadata["source"]
-                dic["page"] = a.metadata["page"] + 1
-                st.write(dic)
+            response = retriever.get_relevant_documents(query=query)
         if mode == "Chat":
-            llm_response = qa_chain(query)
-            dic = process_llm_response(llm_response)
-            st.write(dic)
+            response = qa_chain(query)
+        dic = process_response(response, mode)
+        st.write(dic)
 
 
 if __name__ == "__main__":
