@@ -93,7 +93,7 @@ def define_llm():
     return llm
 
 
-# @st.cache_resource
+@st.cache_resource
 def chat(_retriever, _llm):
     qa_chain = RetrievalQA.from_chain_type(
         llm=_llm,
@@ -150,7 +150,7 @@ def main():
         st.session_state["uploaded_files"] = []
 
     if files:
-        docs = update_states_and_db(files, chromadb)
+        summary_docs = update_states_and_db(files, chromadb)
         st.write("Documents uploaded and processed.")
 
     query = st.text_input(
@@ -171,7 +171,7 @@ def main():
                 f"Give each fact a number and keep them short sentences {query}"
             )
             response = summarization_chain(
-                {"input_documents": docs[:2], "query": default_query},
+                {"input_documents": summary_docs[:4], "query": default_query},
                 return_only_outputs=True,
             )
         dic = process_response(response, mode)
