@@ -1,6 +1,8 @@
 import re
 
 import streamlit as st
+from doctr.io import DocumentFile
+from doctr.models import ocr_predictor
 from langchain.chains import RetrievalQA
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
@@ -24,14 +26,11 @@ splitter = RecursiveCharacterTextSplitter(
 
 prompt_template = """Extract the key facts out of this text. Don't include opinions.
 
-
 {text}
 
 """
 
-
 PROMPT = PromptTemplate(template=prompt_template, input_variables=["text"])
-
 
 refine_template = (
     "Your job is to produce a final summary\n"
@@ -65,6 +64,8 @@ def process_response(response, mode) -> dict:
         ans["source_documents"] = response
     if mode == "Summary":
         ans["summary"] = response["output_text"]
+    if mode == "OCR":
+        ans["OCR"] = response
     return ans
 
 
@@ -74,7 +75,23 @@ def load_docs(file_path: str):
     if file_path.endswith(".pdf"):
         doc = PyPDFLoader(file_path)
         docs = doc.load_and_split(text_splitter=splitter)
+    else:
+        single_img_doc = DocumentFile.from_images(file_path)
+        model = ocr_predictor(
+            det_arch="db_resnet50", reco_arch="crnn_vgg16_bn", pretrained=True
+        )
+        result = model(single_img_doc)
+        docs = result.export()
     return docs
+
+
+def preprocess_ocr(docs):
+    text = ""
+    for block in docs["pages"][0]["blocks"]:
+        for line in block["lines"]:
+            for word in line["words"]:
+                text += word["value"] + " "
+    return text
 
 
 @st.cache_resource
@@ -117,15 +134,18 @@ def define_summarization_chain(_llm):
 
 
 @st.cache_data
-def update_states_and_db(files: list, _db) -> None:
-    for file_ in files:
-        file_name = file_.name
-        docs = load_docs(f"{config_dict['FILE_PATH']}/{file_name}")
+def update_states_and_db(file_: str, _db) -> None:
+    file_name = file_.name
+    docs = load_docs(f"{config_dict['FILE_PATH']}/{file_name}")
+    if file_name.endswith(".pdf"):
         processed_docs = [preprocess(doc.page_content) for doc in docs]
         metadata = [doc.metadata for doc in docs]
-        _db.add_texts(texts=processed_docs, metadatas=metadata)
-        _db.persist()
-        st.session_state.uploaded_files[file_name] = docs
+    else:
+        processed_docs = [preprocess_ocr(docs)]
+        metadata = [{"source": file_name, "page": 1}]
+    _db.add_texts(texts=processed_docs, metadatas=metadata)
+    _db.persist()
+    st.session_state.uploaded_files[file_name] = processed_docs
 
 
 def main():
@@ -136,7 +156,7 @@ def main():
     summarization_chain = define_summarization_chain(llm)
     qa_chain = chat(retriever, llm)
 
-    k_param = 5
+    k_param = 1
     retriever.search_kwargs = {"k": k_param}
 
     # Files
@@ -148,22 +168,36 @@ def main():
         st.session_state["uploaded_files"] = {}
 
     if files_list:
-        update_states_and_db(files_list, chromadb)
+        print(files_list)
+        for file_ in files_list:
+            print(file_)
+            update_states_and_db(file_, chromadb)
         st.write("Documents uploaded and processed.")
 
     # Sidebar
     st.sidebar.title("Menu")
-    mode = st.sidebar.selectbox("Select Mode", ["Search", "Chat", "Summary"])
-
+    task = st.sidebar.radio("Pick file type", ["PDF", "JPG"])
+    if task == "PDF":
+        mode = st.sidebar.selectbox("Select Mode", ["Search", "Chat", "Summary"])
+    if task == "JPG":
+        mode = st.sidebar.selectbox("Select Mode", ["OCR", "Conversation", "Summary"])
     if mode == "Summary":
         dock_to_summarize = st.sidebar.radio(
-            "Pick dock to summarize", [file_.name for file_ in files_list]
+            "Pick dock to summarize",
+            [file_.name for file_ in files_list if file_.name.endswith("pdf")],
         )
         print(st.session_state.uploaded_files[dock_to_summarize][:4])
 
+    if mode == "OCR":
+        dock_to_summarize = st.sidebar.radio(
+            "Pick dock to ocr",
+            [file_.name for file_ in files_list if file_.name.endswith("jpg")],
+        )
+        ocr = st.session_state.uploaded_files[dock_to_summarize]
+
     query = st.text_input(
         label=f"{mode}",
-        value="",
+        value="" if mode != "OCR" else "Extract",
         placeholder="Give each fact a number and keep them short sentences"
         if mode == "Summary"
         else "Enter query",
@@ -174,6 +208,8 @@ def main():
             response = retriever.get_relevant_documents(query=query)
         if mode == "Chat":
             response = qa_chain(query)
+        if mode == "OCR":
+            response = ocr
         if mode == "Summary":
             default_query = (
                 f"Give each fact a number and keep them short sentences {query}"
