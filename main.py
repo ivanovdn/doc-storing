@@ -54,6 +54,8 @@ def process_response(response, mode) -> dict:
         ans["summary"] = response
     if mode == "OCR":
         ans["OCR"] = response
+    if mode == "Conversation":
+        ans["response"] = response
     return ans
 
 
@@ -188,7 +190,7 @@ def main():
     if task == "PDF":
         mode = st.sidebar.selectbox("Select Mode", ["Search", "Chat", "Summary"])
     if task == "JPG":
-        mode = st.sidebar.selectbox("Select Mode", ["OCR", "Conversation", "Summary"])
+        mode = st.sidebar.selectbox("Select Mode", ["OCR", "Conversation"])
 
     if mode == "Summary":
         dock_to_summarize = st.sidebar.radio(
@@ -196,7 +198,6 @@ def main():
             [file_.name for file_ in files_list if file_.name.endswith("pdf")],
         )
         summary_docs = st.session_state.uploaded_files[dock_to_summarize][:5]
-        print(summary_docs)
 
         response = summary_summary(summarization_chain, summary_docs)
         summary = process_response(response, mode)
@@ -229,6 +230,8 @@ def main():
             response = conversation.predict(
                 input=f"{query} {st.session_state.summary[dock_to_summarize]}"
             )
+        if mode == "Conversation":
+            response = conversation.predict(input=f"{query}")
         dic = process_response(response, mode)
         st.write(dic)
 
