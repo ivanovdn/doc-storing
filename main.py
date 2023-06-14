@@ -18,6 +18,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
 from config import config
+from prompt_templates import prompt_template, refine_template
 
 config_dict = config.config()
 
@@ -28,25 +29,7 @@ splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=config_dict["CHUNK_OVERLAP"],
 )
 
-
-prompt_template = """Extract the key facts out of this text. Don't include opinions.
-
-{text}
-
-"""
-
 PROMPT = PromptTemplate(template=prompt_template, input_variables=["text"])
-
-refine_template = (
-    "Your job is to produce a final summary\n"
-    "We have provided an existing summary up to a certain point: {existing_answer}\n"
-    "We have the opportunity to refine the existing summary"
-    "(only if needed) with some more context below.\n"
-    "------------\n"
-    "{text}\n"
-    "------------\n"
-    "{query}"
-)
 
 refine_prompt = PromptTemplate(
     input_variables=["existing_answer", "text", "query"],
