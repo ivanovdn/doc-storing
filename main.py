@@ -139,8 +139,8 @@ def update_states_and_db(file_: str, _db) -> None:
     _db.persist()
 
 
-@st.cache_data
-def summary_summary(_summary_chain, _docs):
+# @st.cache_data
+def get_summary(_summary_chain, _docs):
     response = _summary_chain(
         {"input_documents": _docs, "query": default_summary_query},
         return_only_outputs=True,
@@ -197,8 +197,9 @@ def main():
             [file_.name for file_ in files_list if file_.name.endswith("pdf")],
         )
         summary_docs = st.session_state.uploaded_files[dock_to_summarize][:5]
+        print(summary_docs)
 
-        response = summary_summary(summarization_chain, summary_docs)
+        response = get_summary(summarization_chain, summary_docs)
         summary = process_response(response, mode)
         st.session_state.summary[dock_to_summarize] = summary
         st.write(st.session_state.summary[dock_to_summarize])
