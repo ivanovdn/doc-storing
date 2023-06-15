@@ -15,3 +15,6 @@ refine_template = (
     "------------\n"
     "{query}"
 )
+
+
+default_summary_query = "Give each fact a number and keep them short sentences"

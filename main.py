@@ -18,7 +18,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
 from config import config
-from prompt_templates import prompt_template, refine_template
+from prompt_templates import default_summary_query, prompt_template, refine_template
 
 config_dict = config.config()
 
@@ -141,9 +141,8 @@ def update_states_and_db(file_: str, _db) -> None:
 
 @st.cache_data
 def summary_summary(_summary_chain, _docs):
-    default_query = "Give each fact a number and keep them short sentences"
     response = _summary_chain(
-        {"input_documents": _docs, "query": default_query},
+        {"input_documents": _docs, "query": default_summary_query},
         return_only_outputs=True,
     )
     return response
