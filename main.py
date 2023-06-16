@@ -1,5 +1,3 @@
-import re
-
 import streamlit as st
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
@@ -19,10 +17,11 @@ from langchain.vectorstores import Chroma
 
 from config import config
 from prompt_templates import default_summary_query, prompt_template, refine_template
+from utils import preprocess, preprocess_ocr, process_response
 
 config_dict = config.config()
 
-st.title("Document storing example")
+st.title("Document assistance")
 
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=config_dict["CHUNK_SIZE"],
@@ -35,28 +34,6 @@ refine_prompt = PromptTemplate(
     input_variables=["existing_answer", "text", "query"],
     template=refine_template,
 )
-
-
-def preprocess(text: str) -> str:
-    text = text.replace("\n", "")
-    text = re.sub("\s+", " ", text)
-    return text
-
-
-def process_response(response, mode) -> dict:
-    ans = {}
-    if mode == "Chat":
-        ans["response"] = response["result"]
-        ans["source_documents"] = response["source_documents"]
-    if mode == "Search":
-        ans["source_documents"] = response
-    if mode == "Summary":
-        ans["summary"] = response
-    if mode == "OCR":
-        ans["OCR"] = response
-    if mode == "Conversation":
-        ans["response"] = response
-    return ans
 
 
 @st.cache_data
@@ -73,15 +50,6 @@ def load_docs(file_path: str):
         result = model(single_img_doc)
         docs = result.export()
     return docs
-
-
-def preprocess_ocr(docs):
-    text = ""
-    for block in docs["pages"][0]["blocks"]:
-        for line in block["lines"]:
-            for word in line["words"]:
-                text += word["value"] + " "
-    return text
 
 
 @st.cache_resource
@@ -118,7 +86,11 @@ def chat(_retriever, _llm):
 @st.cache_resource
 def define_summarization_chain(_llm):
     chain = load_summarize_chain(
-        _llm, chain_type="refine", question_prompt=PROMPT, refine_prompt=refine_prompt
+        _llm,
+        chain_type="refine",
+        question_prompt=PROMPT,
+        refine_prompt=refine_prompt,
+        verbose=True,
     )
     return chain
 
@@ -139,7 +111,7 @@ def update_states_and_db(file_: str, _db) -> None:
     _db.persist()
 
 
-# @st.cache_data
+@st.cache_data
 def get_summary(_summary_chain, _docs):
     response = _summary_chain(
         {"input_documents": _docs, "query": default_summary_query},
@@ -150,9 +122,13 @@ def get_summary(_summary_chain, _docs):
 
 @st.cache_resource
 def establish_conversation(_llm):
-    window_memory = ConversationBufferWindowMemory(k=3)
+    window_memory = ConversationBufferWindowMemory(k=10)
     conversation = ConversationChain(memory=window_memory, llm=_llm, verbose=True)
     return conversation
+
+
+def clear_text():
+    st.session_state["text"] = ""
 
 
 def main():
@@ -164,7 +140,7 @@ def main():
     qa_chain = chat(retriever, llm)
     conversation = establish_conversation(llm)
 
-    k_param = 1
+    k_param = 5
     retriever.search_kwargs = {"k": k_param}
 
     # Files
@@ -196,8 +172,7 @@ def main():
             "Pick dock to summarize",
             [file_.name for file_ in files_list if file_.name.endswith("pdf")],
         )
-        summary_docs = st.session_state.uploaded_files[dock_to_summarize][:5]
-        print(summary_docs)
+        summary_docs = st.session_state.uploaded_files[dock_to_summarize][:4]
 
         response = get_summary(summarization_chain, summary_docs)
         summary = process_response(response, mode)
@@ -213,10 +188,12 @@ def main():
         if mode == "Conversation":
             st.write(ocr)
 
+    st.button("clear text input", on_click=clear_text)
     query = st.text_input(
-        label=f"{mode}",
+        label="Query",
         value="" if mode != "OCR" else "Extract",
         placeholder="Enter query",
+        key="text",
     )
 
     if len(query) > 0:
@@ -227,13 +204,13 @@ def main():
         if mode == "OCR":
             response = ocr
         if mode == "Summary":
-            response = conversation.predict(
-                input=f"{query} {st.session_state.summary[dock_to_summarize]}"
-            )
+            mode = "Conversation"
+            response = conversation.predict(input=f"{query}")
         if mode == "Conversation":
             response = conversation.predict(input=f"{query}")
         dic = process_response(response, mode)
         st.write(dic)
+        query = ""
 
 
 if __name__ == "__main__":

@@ -17,4 +17,7 @@ refine_template = (
 )
 
 
-default_summary_query = "Give each fact a number and keep them short sentences"
+default_summary_query = """
+Pay attention to dates, addresses and named enteties.
+Give each fact a number and keep them short sentences.
+"""
