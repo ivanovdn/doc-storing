@@ -123,7 +123,7 @@ def get_summary(_summary_chain, _docs):
 
 @st.cache_resource
 def establish_conversation(_llm):
-    window_memory = ConversationBufferWindowMemory(k=10)
+    window_memory = ConversationBufferWindowMemory(k=config_dict["WINDOW_MEMORY"])
     conversation = ConversationChain(memory=window_memory, llm=_llm, verbose=True)
     return conversation
 
