@@ -21,6 +21,7 @@ from utils import preprocess, preprocess_ocr, process_response
 
 config_dict = config.config()
 
+st.set_page_config(page_title="Demo", layout="wide")
 st.title("Document assistance")
 
 splitter = RecursiveCharacterTextSplitter(
