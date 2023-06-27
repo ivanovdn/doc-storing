@@ -111,19 +111,16 @@ def update_states_and_db(file_: str, _db) -> None:
     file_name = file_.name
     docs = load_docs(f"{config_dict['FILE_PATH']}/{file_name}")
     if file_name.endswith(".pdf") or file_name.endswith(".docx"):
-        print("here")
         processed_docs = [preprocess(doc.page_content) for doc in docs]
         metadata = [
             {"source": doc.metadata["source"], "page": doc.metadata.get("page", "")}
             for doc in docs
         ]
         st.session_state.uploaded_files[file_name] = docs
-        print("huy")
     else:
         processed_docs = [preprocess_ocr(docs)]
         metadata = [{"source": file_name, "page": 1}]
         st.session_state.uploaded_files[file_name] = processed_docs
-    print("pizda")
     _db.add_texts(texts=processed_docs, metadatas=metadata)
     _db.persist()
 
