@@ -16,7 +16,12 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
 from config import config
-from prompt_templates import default_summary_query, prompt_template, refine_template
+from prompt_templates import (
+    default_summary,
+    default_summary_query,
+    prompt_template,
+    refine_template,
+)
 from utils import preprocess, preprocess_ocr, process_response
 
 config_dict = config.config()
@@ -64,6 +69,8 @@ def establish_db():
 @st.cache_resource
 def establish_retriever(_db):
     retriever = _db.as_retriever()
+    k_param = 5
+    retriever.search_kwargs = {"k": k_param}
     return retriever
 
 
@@ -136,13 +143,11 @@ def main():
     # Establish main components
     chromadb = establish_db()
     retriever = establish_retriever(chromadb)
+
     llm = define_llm()
     summarization_chain = define_summarization_chain(llm)
     qa_chain = chat(retriever, llm)
     conversation = establish_conversation(llm)
-
-    k_param = 5
-    retriever.search_kwargs = {"k": k_param}
 
     # Files
     files_list = st.file_uploader(
@@ -175,7 +180,7 @@ def main():
         )
         summary_docs = st.session_state.uploaded_files[dock_to_summarize][:4]
 
-        response = get_summary(summarization_chain, summary_docs)
+        response = default_summary  # get_summary(summarization_chain, summary_docs)
         summary = process_response(response, mode)
         st.session_state.summary[dock_to_summarize] = summary
         st.write(st.session_state.summary[dock_to_summarize])
