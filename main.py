@@ -9,7 +9,7 @@ from langchain.chains import (
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import PyPDFLoader
+from langchain.document_loaders import PyPDFLoader, UnstructuredWordDocumentLoader
 from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -48,13 +48,16 @@ def load_docs(file_path: str):
     if file_path.endswith(".pdf"):
         doc = PyPDFLoader(file_path)
         docs = doc.load_and_split(text_splitter=splitter)
-    else:
+    elif file_path.endswith(".jpg"):
         single_img_doc = DocumentFile.from_images(file_path)
         model = ocr_predictor(
             det_arch="db_resnet50", reco_arch="crnn_vgg16_bn", pretrained=True
         )
         result = model(single_img_doc)
         docs = result.export()
+    elif file_path.endswith(".docx"):
+        doc = UnstructuredWordDocumentLoader(file_path)
+        docs = doc.load_and_split(text_splitter=splitter)
     return docs
 
 
@@ -107,14 +110,20 @@ def define_summarization_chain(_llm):
 def update_states_and_db(file_: str, _db) -> None:
     file_name = file_.name
     docs = load_docs(f"{config_dict['FILE_PATH']}/{file_name}")
-    if file_name.endswith(".pdf"):
+    if file_name.endswith(".pdf") or file_name.endswith(".docx"):
+        print("here")
         processed_docs = [preprocess(doc.page_content) for doc in docs]
-        metadata = [doc.metadata for doc in docs]
+        metadata = [
+            {"source": doc.metadata["source"], "page": doc.metadata.get("page", "")}
+            for doc in docs
+        ]
         st.session_state.uploaded_files[file_name] = docs
+        print("huy")
     else:
         processed_docs = [preprocess_ocr(docs)]
         metadata = [{"source": file_name, "page": 1}]
         st.session_state.uploaded_files[file_name] = processed_docs
+    print("pizda")
     _db.add_texts(texts=processed_docs, metadatas=metadata)
     _db.persist()
 
@@ -151,7 +160,7 @@ def main():
 
     # Files
     files_list = st.file_uploader(
-        "Upload Documents", type=["pdf", "jpg"], accept_multiple_files=True
+        "Upload Documents", type=["pdf", "jpg", "docx"], accept_multiple_files=True
     )
 
     if "uploaded_files" not in st.session_state:
