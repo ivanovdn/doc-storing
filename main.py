@@ -172,7 +172,7 @@ def main():
     task = st.sidebar.radio("Pick file type", ["PDF", "JPG"])
 
     if task == "PDF":
-        mode = st.sidebar.selectbox("Select Mode", ["Search", "Chat", "Summary"])
+        mode = st.sidebar.selectbox("Select Mode", ["Chat", "Summary"])
     if task == "JPG":
         mode = st.sidebar.selectbox("Select Mode", ["OCR", "Conversation"])
 
