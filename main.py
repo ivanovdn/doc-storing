@@ -44,7 +44,6 @@ refine_prompt = PromptTemplate(
 
 @st.cache_data
 def load_docs(file_path: str):
-    # st.info("`Reading doc ...`")
     if file_path.endswith(".pdf"):
         doc = PyPDFLoader(file_path)
         docs = doc.load_and_split(text_splitter=splitter)
@@ -63,7 +62,6 @@ def load_docs(file_path: str):
 
 @st.cache_resource
 def establish_db():
-    # st.info("`Chroma DB creating...`")
     emb = SentenceTransformerEmbeddings(model_name=config_dict["MODEL_NAME"])
     db = Chroma(embedding_function=emb, persist_directory=config_dict["DB_PATH"])
     return db
@@ -72,8 +70,7 @@ def establish_db():
 @st.cache_resource
 def establish_retriever(_db):
     retriever = _db.as_retriever()
-    k_param = 5
-    retriever.search_kwargs = {"k": k_param}
+    retriever.search_kwargs = {"k": config_dict["K_PARAM"]}
     return retriever
 
 
