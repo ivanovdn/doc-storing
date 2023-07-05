@@ -22,7 +22,7 @@ def process_response(response, mode) -> dict:
             break_long_words=False,
             replace_whitespace=False,
         )
-        ans["summary"] = wrapped_text
+        ans["summary"] = response["output_text"]
     if mode == "OCR":
         ans["OCR"] = response
     if mode == "Conversation":

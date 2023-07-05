@@ -16,12 +16,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 
 from config import config
-from prompt_templates import (
-    default_summary,
-    default_summary_query,
-    prompt_template,
-    refine_template,
-)
+from prompt_templates import default_summary_query, prompt_template, refine_template
 from utils import preprocess, preprocess_ocr, process_response
 
 config_dict = config.config()
@@ -76,7 +71,11 @@ def establish_retriever(_db):
 
 @st.cache_resource
 def define_llm():
-    llm = ChatOpenAI(temperature=config_dict["TEMPERATURE"], request_timeout=120)
+    llm = ChatOpenAI(
+        model=config_dict["MODEL"],
+        temperature=config_dict["TEMPERATURE"],
+        request_timeout=120,
+    )
     return llm
 
 
@@ -91,7 +90,7 @@ def chat(_retriever, _llm):
     return qa_chain
 
 
-@st.cache_resource
+# @st.cache_resource
 def define_summarization_chain(_llm):
     chain = load_summarize_chain(
         _llm,
@@ -122,7 +121,7 @@ def update_states_and_db(file_: str, _db) -> None:
     _db.persist()
 
 
-@st.cache_data
+# @st.cache_data
 def get_summary(_summary_chain, _docs):
     response = _summary_chain(
         {"input_documents": _docs, "query": default_summary_query},
@@ -148,7 +147,7 @@ def main():
     retriever = establish_retriever(chromadb)
 
     llm = define_llm()
-    summarization_chain = define_summarization_chain(llm)
+    # summarization_chain = define_summarization_chain(llm)
     qa_chain = chat(retriever, llm)
     conversation = establish_conversation(llm)
 
@@ -169,9 +168,9 @@ def main():
 
     # Sidebar
     st.sidebar.title("Menu")
-    task = st.sidebar.radio("Pick file type", ["PDF", "JPG"])
+    task = st.sidebar.radio("Pick file type", ["Text Documents"])
 
-    if task == "PDF":
+    if task == "Text Documents":
         mode = st.sidebar.selectbox("Select Mode", ["Chat", "Summary"])
     if task == "JPG":
         mode = st.sidebar.selectbox("Select Mode", ["OCR", "Conversation"])
@@ -179,14 +178,18 @@ def main():
     if mode == "Summary":
         dock_to_summarize = st.sidebar.radio(
             "Pick dock to summarize",
-            [file_.name for file_ in files_list if file_.name.endswith("pdf")],
+            [
+                file_.name
+                for file_ in files_list
+                if file_.name.endswith(("pdf", "docx"))
+            ],
         )
-        summary_docs = st.session_state.uploaded_files[dock_to_summarize][:4]
-
-        response = default_summary  # get_summary(summarization_chain, summary_docs)
+        summary_docs = st.session_state.uploaded_files[dock_to_summarize][:3]
+        summarization_chain = define_summarization_chain(llm)
+        response = get_summary(summarization_chain, summary_docs)
         summary = process_response(response, mode)
-        st.session_state.summary[dock_to_summarize] = summary
-        st.write(st.session_state.summary[dock_to_summarize])
+        # st.session_state.summary[dock_to_summarize] = summary
+        st.write(summary)
 
     if task == "JPG":
         dock_to_summarize = st.sidebar.radio(
@@ -197,29 +200,30 @@ def main():
         if mode == "Conversation":
             st.write(ocr)
 
-    st.button("clear text input", on_click=clear_text)
-    query = st.text_input(
-        label="Query",
-        value="" if mode != "OCR" else "Extract",
-        placeholder="Enter query",
-        key="text",
-    )
+    if mode not in ("Summary"):
+        st.button("clear text input", on_click=clear_text)
+        query = st.text_input(
+            label="Query",
+            value="" if mode != "OCR" else "Extract",
+            placeholder="Enter query",
+            key="text",
+        )
 
-    if len(query) > 0:
-        if mode == "Search":
-            response = retriever.get_relevant_documents(query=query)
-        if mode == "Chat":
-            response = qa_chain(query)
-        if mode == "OCR":
-            response = ocr
-        if mode == "Summary":
-            mode = "Conversation"
-            response = conversation.predict(input=f"{query}")
-        if mode == "Conversation":
-            response = conversation.predict(input=f"{query}")
-        dic = process_response(response, mode)
-        st.write(dic)
-        query = ""
+        if len(query) > 0:
+            if mode == "Search":
+                response = retriever.get_relevant_documents(query=query)
+            if mode == "Chat":
+                response = qa_chain(query)
+            if mode == "OCR":
+                response = ocr
+            # if mode == "Summary":
+            # mode = "Conversation"
+            # response = conversation.predict(input=f"{query}")
+            if mode == "Conversation":
+                response = conversation.predict(input=f"{query}")
+            dic = process_response(response, mode)
+            st.write(dic)
+            query = ""
 
 
 if __name__ == "__main__":

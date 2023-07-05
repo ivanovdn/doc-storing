@@ -6,10 +6,10 @@ prompt_template = """Extract the key facts out of this text. Don't include opini
 
 
 refine_template = (
-    "Your job is to produce a final summary\n"
+    "\n"
     "We have provided an existing summary up to a certain point: {existing_answer}\n"
-    "We have the opportunity to refine the existing summary"
-    "(only if needed) with some more context below.\n"
+    # "We have the opportunity to refine the existing summary"
+    # "(only if needed) with some more context below.\n"
     "------------\n"
     "{text}\n"
     "------------\n"
@@ -20,6 +20,7 @@ refine_template = (
 default_summary_query = """
 Pay attention to dates, addresses and named enteties.
 Give each fact a number and keep them short sentences.
+Your job is combine all facts and in the final return all numerated facts from 1 to the end.
 """
 
 
